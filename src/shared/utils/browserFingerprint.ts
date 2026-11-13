@@ -22,10 +22,10 @@ function generateFingerprint(): string {
 
 export function getBrowserFingerprint(): string {
   try {
-    let fp = sessionStorage.getItem(STORAGE_KEY);
+    let fp = localStorage.getItem(STORAGE_KEY);
     if (!fp) {
       fp = generateFingerprint();
-      sessionStorage.setItem(STORAGE_KEY, fp);
+      localStorage.setItem(STORAGE_KEY, fp);
     }
     return fp;
   } catch {

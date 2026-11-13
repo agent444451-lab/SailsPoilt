@@ -7,7 +7,7 @@ import { Button } from '@/shared/ui/Button';
 import { Field, inputClass } from '@/shared/ui/Field';
 import { firebaseErrorCode } from '@/shared/auth/firebase';
 import { useAuth } from '@/features/auth/useAuth';
-import { checkPasswordRequestByEmail, createPasswordRequestByEmail } from '@/features/roster/rosterApi';
+import { checkPasswordRequestByEmail, createPasswordRequestByEmail, generateResetKey, sha256Hex, storeResetKey } from '@/features/roster/rosterApi';
 import { getBrowserFingerprint } from '@/shared/utils/browserFingerprint';
 
 const schema = z.object({
@@ -45,7 +45,10 @@ export function ForgotPasswordForm({ onBack }: { onBack: () => void }) {
         setStatus('pending');
         return;
       }
-      await createPasswordRequestByEmail(email, fp);
+      const resetKey = generateResetKey();
+      const resetKeyHash = await sha256Hex(resetKey);
+      storeResetKey(resetKey);
+      await createPasswordRequestByEmail(email, fp, resetKeyHash);
       setStatus('requested');
     } catch {
       setStatus('unknown');

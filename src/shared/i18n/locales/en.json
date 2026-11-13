@@ -164,6 +164,19 @@
     "saving": "Saving...",
     "saved": "Your profile was updated.",
     "error": "Could not save your profile. Please try again.",
+    "errors": {
+      "generic": "Could not save your profile. Please try again.",
+      "invalidPhone": "The phone number format is not valid.",
+      "invalidName": "Enter a valid name.",
+      "network": "Could not reach the server. Check your connection."
+    },
+    "resetApproved": "Your password request was approved. Set your new password below.",
+    "passwordChanged": "Your password was changed successfully.",
+    "resetErrors": {
+      "invalidToken": "This recovery link is invalid or expired. Please request a new one.",
+      "firebaseFailed": "Could not update your password on the sign-in service. Please try again.",
+      "generic": "Could not change your password. Please try again."
+    },
     "passwordTitle": "Password",
     "passwordDescription": "Send a secure password-change link to your sign-in email.",
     "sendReset": "Email me a password link",
@@ -234,6 +247,8 @@
       "unknown": "Sign-in failed. Please try again.",
       "requiresRecentLogin": "For security, sign out, sign back in, and then set your new password.",
       "generic": "Could not update your password. Please try again.",
+      "invalidResetToken": "This recovery link is invalid or expired. Please request a new one.",
+      "firebaseUpdateFailed": "Could not update your password on the sign-in service. Please try again.",
       "accountExists": "This email already signs in with a password. Use the email and password form instead.",
       "unauthorizedDomain": "Google sign-in is not enabled for this website yet. Ask the app owner to add it in the sign-in settings.",
       "popupBlocked": "Your browser blocked the Google window. Allow pop-ups for this site and try again."

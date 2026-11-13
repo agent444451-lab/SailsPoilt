@@ -8,6 +8,9 @@ import { usePreferences } from '@/shared/stores/preferences';
 import { LoginForm } from '@/features/auth/LoginForm';
 import { ChangePasswordForm } from '@/features/auth/ChangePasswordForm';
 import { ForgotPasswordForm } from '@/features/auth/ForgotPasswordForm';
+import { ResetPasswordForm } from '@/features/auth/ResetPasswordForm';
+import { checkResetContext, getStoredResetKey } from '@/features/roster/rosterApi';
+import { getBrowserFingerprint } from '@/shared/utils/browserFingerprint';
 import type { RosterMember } from '@/features/roster/rosterApi';
 
 export function AuthGate({ children }: { children: (member: RosterMember) => ReactNode }) {
@@ -19,6 +22,23 @@ export function AuthGate({ children }: { children: (member: RosterMember) => Rea
     if (state.status === 'ready') setUserId(state.member.id);
   }, [setUserId, state]);
   const [recovering, setRecovering] = useState(false);
+  const [resetAvailable, setResetAvailable] = useState(false);
+
+  useEffect(() => {
+    if (state.status !== 'signedOut') return;
+    if (!getStoredResetKey()) return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const fp = getBrowserFingerprint();
+        const { available } = await checkResetContext(fp);
+        if (!cancelled) setResetAvailable(available);
+      } catch {
+        /* ignore — show normal login */
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [state.status]);
 
   switch (state.status) {
     case 'loading':
@@ -31,6 +51,13 @@ export function AuthGate({ children }: { children: (member: RosterMember) => Rea
         </AuthShell>
       );
     case 'signedOut':
+      if (resetAvailable) {
+        return (
+          <AuthShell title={t('auth.changePassword.title')} description={t('auth.changePassword.description')}>
+            <ResetPasswordForm />
+          </AuthShell>
+        );
+      }
       if (recovering) {
         return (
           <AuthShell title={t('auth.forgot.title')} description={t('auth.forgot.description')}>

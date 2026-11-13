@@ -289,19 +289,19 @@ export async function listPasswordRequests(): Promise<{ requests: PasswordChange
   return callRoster<{ requests: PasswordChangeRequest[] }>({ action: 'listPasswordRequests' });
 }
 
-export async function createPasswordRequest(browserFingerprint: string): Promise<void> {
-  await callRoster<{ ok: true }>({ action: 'createPasswordRequest', browserFingerprint });
+export async function createPasswordRequest(browserFingerprint: string, resetKeyHash?: string): Promise<void> {
+  await callRoster<{ ok: true }>({ action: 'createPasswordRequest', browserFingerprint, resetKeyHash });
 }
 
 export async function checkPasswordRequest(browserFingerprint: string): Promise<{ pending: boolean; requestedAt: string | null }> {
   return callRoster<{ pending: boolean; requestedAt: string | null }>({ action: 'checkPasswordRequest', browserFingerprint });
 }
 
-export async function createPasswordRequestByEmail(email: string, browserFingerprint: string): Promise<void> {
+export async function createPasswordRequestByEmail(email: string, browserFingerprint: string, resetKeyHash?: string): Promise<void> {
   const response = await fetch(ROSTER_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ action: 'requestPasswordByEmail', email, browserFingerprint }),
+    body: JSON.stringify({ action: 'requestPasswordByEmail', email, browserFingerprint, resetKeyHash }),
   });
   if (!response.ok) throw new RosterError(response.status, 'request_failed');
 }
@@ -316,6 +316,59 @@ export async function checkPasswordRequestByEmail(email: string, browserFingerpr
   const payload = await response.json().catch(() => null);
   if (typeof payload !== 'object' || payload === null) throw new RosterError(response.status, 'invalid_response');
   return payload as { pending: boolean; requestedAt: string | null };
+}
+
+export async function checkResetContext(browserFingerprint: string): Promise<{ available: boolean }> {
+  const response = await fetch(ROSTER_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'checkResetContext', browserFingerprint }),
+  });
+  if (!response.ok) throw new RosterError(response.status, 'request_failed');
+  const payload = await response.json().catch(() => null);
+  if (typeof payload !== 'object' || payload === null) throw new RosterError(response.status, 'invalid_response');
+  return payload as { available: boolean };
+}
+
+export async function completePasswordReset(resetKey: string, browserFingerprint: string, newPassword: string): Promise<{ ok: boolean; email: string }> {
+  const response = await fetch(ROSTER_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'completePasswordReset', resetKey, browserFingerprint, newPassword }),
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const failure = (typeof payload === 'object' && payload !== null ? payload : {}) as { error?: unknown };
+    const code = typeof failure.error === 'string' ? failure.error : 'request_failed';
+    throw new RosterError(response.status, code);
+  }
+  if (typeof payload !== 'object' || payload === null) throw new RosterError(response.status, 'invalid_response');
+  return payload as { ok: boolean; email: string };
+}
+
+const RESET_KEY_STORAGE = 'sp_reset_key';
+
+export function generateResetKey(): string {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+export async function sha256Hex(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+export function storeResetKey(key: string): void {
+  try { localStorage.setItem(RESET_KEY_STORAGE, key); } catch { /* ignore */ }
+}
+
+export function getStoredResetKey(): string | null {
+  try { return localStorage.getItem(RESET_KEY_STORAGE); } catch { return null; }
+}
+
+export function clearStoredResetKey(): void {
+  try { localStorage.removeItem(RESET_KEY_STORAGE); } catch { /* ignore */ }
 }
 
 export async function addCompanyAssistant(input: {

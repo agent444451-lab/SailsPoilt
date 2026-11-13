@@ -118,6 +118,10 @@ export async function performAction(actor: MemberRow, body: Record<string, unkno
       return checkPasswordRequest(actor, body);
     case "reviewPasswordRequest":
       return reviewPasswordRequest(actor, body);
+    case "completePasswordReset":
+      return completePasswordReset(body);
+    case "checkResetContext":
+      return checkResetContext(body);
     case "platformStats":
       return platformStats(actor);
     case "listNotifications":
@@ -185,6 +189,7 @@ function hasCustomPermission(actor: MemberRow, permission: string): boolean {
 function canReviewPasswordRequests(actor: MemberRow): boolean {
   if (isPlatformRole(actor.role)) return true;
   if (actor.role === "COMPANY_ADMIN") return true;
+  if (actor.role === "BRANCH_MANAGER" || actor.role === "TEAM_LEADER") return false;
   return actor.role === "EMPLOYEE" && hasCustomPermission(actor, "password.approve");
 }
 
@@ -419,7 +424,6 @@ async function createCompanyWithAdmin(actor: MemberRow, body: Record<string, unk
     company_id: companyData.id,
     status: "Active",
     must_change_password: true,
-    temp_password: adminPassword,
   });
   if (memberError) {
     await db.from("companies").delete().eq("id", companyData.id);
@@ -434,7 +438,7 @@ async function updateProfile(actor: MemberRow, body: Record<string, unknown>) {
   const fullNameEn = requireString(fields.fullNameEn, "name");
   const fullNameAr = optionalString(fields.fullNameAr);
   const phone = optionalString(fields.phone);
-  if (phone && !/^[+0-9 ()-]{7,24}$/.test(phone)) throw new HttpError(422, "invalid_phone");
+  if (phone && !/^[+0-9 ()\-]{7,24}$/.test(phone) && !/^[\d+]{7,20}$/.test(phone.replace(/[\s()-]/g, ''))) throw new HttpError(422, "invalid_phone");
   const { error } = await db
     .from("members")
     .update({ full_name_en: fullNameEn, full_name_ar: fullNameAr, phone, updated_at: new Date().toISOString() })
@@ -465,10 +469,18 @@ async function resetMemberPassword(actor: MemberRow, body: Record<string, unknow
   const newPassword = requireString(body.newPassword, "password");
   if (newPassword.length < 8) throw new HttpError(422, "password_too_short");
 
+  if (target.firebase_uid) {
+    try {
+      await updateFirebasePassword(target.firebase_uid, newPassword);
+    } catch (err) {
+      console.error("resetMemberPassword: firebase update failed", err instanceof Error ? err.message : err);
+      throw new HttpError(502, "firebase_update_failed");
+    }
+  }
+
   const { error } = await db
     .from("members")
     .update({
-      temp_password: newPassword,
       must_change_password: true,
       updated_at: new Date().toISOString(),
     })
@@ -720,7 +732,6 @@ async function addCompanyAssistant(actor: MemberRow, body: Record<string, unknow
     is_assistant: true,
     status: "Active",
     must_change_password: true,
-    temp_password: password,
   });
   if (error) throw error;
   return { assistant: { email, userId: nextUserId } };

@@ -1,10 +1,10 @@
 import { createRemoteJWKSet, jwtVerify } from "npm:jose@5";
-import { performAction, requestPasswordByEmail, checkPasswordRequestByEmail } from "./actions.ts";
+import { performAction, requestPasswordByEmail, checkPasswordRequestByEmail, completePasswordReset, checkResetContext } from "./actions.ts";
 import { db, MEMBER_SELECT, type MemberRow } from "./db.ts";
 import { corsHeaders, HttpError, json } from "./http.ts";
 
 const FIREBASE_PROJECT_ID = "salespilot-e581d";
-const ROSTER_FUNCTION_VERSION = "2026-11-13-rev1";
+const ROSTER_FUNCTION_VERSION = "2026-11-13-rev2";
 const FIREBASE_KEYS = createRemoteJWKSet(
   new URL("https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com")
 );
@@ -79,6 +79,12 @@ Deno.serve(async (req: Request) => {
     }
     if (body.action === "checkPasswordRequestByEmail") {
       return json(await checkPasswordRequestByEmail(body));
+    }
+    if (body.action === "completePasswordReset") {
+      return json(await completePasswordReset(body));
+    }
+    if (body.action === "checkResetContext") {
+      return json(await checkResetContext(body));
     }
     const token = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "");
     if (!token) throw new HttpError(401, "unauthenticated");
